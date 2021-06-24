@@ -1,100 +1,83 @@
-# maven-project
+Demo Java Web App
+CI/CD project using simple Java web app Apllication
 
-Simple Maven Project
+Create a AWS account Launch the EC-2 Instances t2.micro t3a.medium
 
-This is a simple CICD Pileline project by using Jenkins, Maven, Docker, Nexus and Sonarqube.
+#How to setup the each tools in the ec2-servers
+  Jenkins
+installation of the jenkins
+       https://techviewleo.com/install-jenkins-server-on-amazon-linux/
+install the git,maven,open-jdk
+open the jenkins using the specific IP and Port
+download the suggested plugins or manually you can select the plugins
+Simple java project demos how to build a war file to be deployed on a Tomcat server.
 
-Launch 2 EC2 Instances (t2.micro and t3a.medium)
+Build
+The build script uses mvn package to produce a demo.war file and then bundles it with a Docker image that runs Tomcat. Usage:
 
-On t2.micro:-
-Install GIT:- yum install git -y
-	git clone https://github.com/Debasish960/my-project.git
+bin/build
+What happened
+mvn package was ran and the target/demo.war was moved into pkg/demo.war
+a docker image was built which copied the pkg/demo.war to /usr/local/tomcat/webapps/demo.war. Check out the Dockerfile for details.
+Here's an example of some things to check after running the build script:
 
-Install JAVA:- yum install java-1.8.0-openjdk-devel -y
----------------------------------------------------
+$ ls pkg/demo.war
+pkg/demo.war
+$ docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+demo-java           latest              88092dfb7325        6 minutes ago       591MB
+tomcat              8.5                 a92c139758db        2 weeks ago         558MB
+$
+Source Url Mapping
+The app is a small demo of a java servlet app. Here's the source code to url mapping:
 
+Source	Url
+src/main/java/Hello.java	localhost:8080/demo/Hello
+src/main/webapp/index.jsp	localhost:8080/demo/index.jsp
+Run
+Here are the summarized commands to run and test that Tomcat is serving the war file:
 
-Install Maven:-
-	mkdir /opt/maven && cd /opt/maven
-	wget https://downloads.apache.org/maven/maven-3/3.8.1/binaries/apache-maven-3.8.1-bin.tar.gz
-	tar -xvf apache-maven-3.8.1-bin.tar.gz
-	vi /etc/profile.d/maven.sh
+docker run --rm -p 8080:8080 -d demo-java
+docker exec -ti $(docker ps -ql) bash
+curl localhost:8080/demo/Hello
+curl localhost:8080/demo/index.jsp
+exit
+docker stop $(docker ps -ql)
+Then you can hit the the [HOSTNAME]:8080/demo/Hello and to verify that Tomcat is servering the demo.war file. You should see an html page that says "Hello World". The output should look similar:
 
-	export M2_HOME=/opt/maven/apache-maven-3.8.1
-	export PATH=${M2_HOME}/bin:${PATH}
-	mvn -version
-  
-  
-  
-  Install JENKINS:-
-	yum -y install wget
-	wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
-	rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
-	yum -y install jenkins
+$ docker run --rm -p 8080:8080 -d demo-java
+2ba7323481fa5c4068b90f2edf38555d9551303e9c2e4c27137ab0545688555b
+$ docker exec -ti $(docker ps -ql) bash
+root@2ba7323481fa:/usr/local/tomcat# curl localhost:8080/demo/Hello
+<h1>Hello World Hello.java</h1>
+root@2ba7323481fa:/usr/local/tomcat# curl localhost:8080/demo/index.jsp
+<html>
+<body>
+<h2>Hello World index.jsp!</h2>
+</body>
+</html>
+root@2ba7323481fa:/usr/local/tomcat# exit
+exit
+$ docker stop $(docker ps -ql)
+2ba7323481fa
+$ docker ps -a
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+$
+Usage with UFO
+The ufo branch of this project provides an additional demo that takes the war artifact, builds a Docker image and deploys it to ECS. For details please check out that branch: ufo. For more details on ufo check out the official ufo docs.
 
-	Start Jenkins
-	# Start jenkins service
-	systemctl start jenkins
+Initial Generation
+Here are some notes on the initial generation of the project. The initial files and project structure was generated with the mvn archetype:generate command. Note, you do not have to run the command it is just noted here for posterity. More info: Creating a webapp and Introduction to the Standard Directory Layout.
 
-	# Setup Jenkins to start at boot,
-	systemctl enable jenkins
+Change were made like adding a simple Hello.java Serlvet class.
 
-	Accessing Jenkins
-	By default jenkins runs at port 8080, You can access jenkins at
+The original command was:
 
-	http://YOUR-SERVER-PUBLIC-IP:8080
-  
-  
-  
-  Install DOCKER:-
-	yum install docker -y
-	usermod -aG docker jenkins
-	usermod -aG docker ec2-user
-	service jenkins restart
-  
-  
-  accessing nexus
-  
-  Configuring Nexus as a Maven repo
-What we will do:
-– create a private (hosted) repository for our snapshots
-– create a private (hosted) repository for our releases
-– create a proxy repository pointing to Maven Central
-– create a group repository to provide all of these repos under a single UR
-
-https://blog.sonatype.com/using-nexus-3-as-your-repository-part-1-maven-artifacts
-
-Add in project's pom.xml
-
-  <distributionManagement>
-    <repository>
-      <id>my-project</id>
-      <url>http://65.2.116.192:8081/nexus/content/repositories/maven-host-release</url>
-    </repository>
-    <snapshotRepository>
-      <id>my-project</id>
-      <url>http://65.2.116.192:8081/nexus/content/repositories/maven-host-snapshot</url>
-    </snapshotRepository>
-  </distributionManagement>
-
-vi /opt/maven/apache-maven-3.6.3/conf
-
-<server>
-  <id>my-project</id>
-  <username>admin</username>
-  <password>admin123</password>
-</server>
-
-mvn deploy
- 
-  
-  Accessing SonarQube
-Nexus runs at port 9000, You can access Nexus at 
-Configuring SonarQube project
-What we will do:
- create a project
- Generate Token
- Select Maven 
- 
- mvn sonar:sonar 
-
+mvn archetype:generate \
+  -DinteractiveMode=false \
+  -DgroupId=com.domain \
+  -DartifactId=demo \
+  -DarchetypeArtifactId=maven-archetype-webapp
+Dependencies
+docker: brew install docker
+maven: brew install maven
